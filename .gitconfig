@@ -1,0 +1,7 @@
+[user]
+	name = Todd Strader
+	email = todd.strader@gmail.com
+[core]
+	editor = vim
+[push]
+	default = simple
