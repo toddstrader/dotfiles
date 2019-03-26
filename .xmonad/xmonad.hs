@@ -1,4 +1,5 @@
 import XMonad
+import XMonad.Util.EZConfig(additionalKeys)
 
 --import XMonad hiding ( (|||) )
 --import XMonad.Core
@@ -67,4 +68,5 @@ main = do
         , focusFollowsMouse = False
 --        , layoutHook = myLayout
 --        , logHook = myLogHook dzenBar
-        }
+        } `additionalKeys`
+        [ ((mod4Mask, xK_x), spawn "xterm") ]
