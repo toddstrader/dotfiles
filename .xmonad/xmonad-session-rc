@@ -5,3 +5,5 @@ xscreensaver -no-splash &
 # For some reason disabling the TrackPad in the BIOS of the
 # X1 Carbon doesn't work -- this is obviously not portable
 xinput set-prop 11 147 0
+# Slow down TrackPoint
+xinput set-prop 12 302 -1
