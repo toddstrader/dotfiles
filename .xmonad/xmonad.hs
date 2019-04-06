@@ -62,7 +62,7 @@ import XMonad.Util.EZConfig(additionalKeys)
 
 main = do
 --    dzenBar <- spawnPipe myXmonadBar
-    xmonad $ defaultConfig
+    xmonad $ def
         { modMask = mod4Mask
         , terminal = "xterm -e tmux"
         , focusFollowsMouse = False
