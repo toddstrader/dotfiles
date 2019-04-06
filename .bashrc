@@ -120,5 +120,5 @@ fi
 export _JAVA_AWT_WM_NONREPARENTING=1
 
 # Add stuff to the path
-export PATH=$PATH:/opt/android-studio/bin/
-export PATH=$PATH:$HOME/tools/arduino/1.8.5/
+#export PATH=$PATH:/opt/android-studio/bin/
+#export PATH=$PATH:$HOME/tools/arduino/1.8.5/
