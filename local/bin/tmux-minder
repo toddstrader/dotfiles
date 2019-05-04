@@ -1,0 +1,146 @@
+#!/usr/bin/python3
+
+import sys
+import os
+import argparse
+import time
+# libtmux looks nice, but doesn't have everything needed
+import subprocess
+
+def registerHook (window, script):
+    subprocess.run(['tmux', 'set-hook', '-t', window,
+            'window-renamed', 'run-shell -b "' + script +
+            ' -w #{window_id} -p -n 5 > ~/dog.hook 2> /tmp/tmux-minder.stderr"']
+            ).check_returncode
+
+def refreshClients (session):
+    clients = subprocess.run(['tmux', 'list-clients', '-t', session, 
+            '-F', '#{client_name}'], stdout=subprocess.PIPE)
+    clients.check_returncode()
+    clientsStr = clients.stdout.decode('utf-8')
+
+    for client in clientsStr.splitlines():
+        subprocess.run(['tmux', 'refresh-client', '-t', client]
+                ).check_returncode
+
+def setWindowName (window, session, prefix):
+    subprocess.run(['tmux', 'set-window-option', '-t', window,
+            'automatic-rename', 'off']).check_returncode
+    subprocess.run(['tmux', 'set-window-option', '-t', window,
+            'automatic-rename-format', prefix + '#{pane_current_command}']
+            ).check_returncode
+    subprocess.run(['tmux', 'set-window-option', '-t', window,
+            'automatic-rename', 'on']).check_returncode
+    refreshClients(session)
+
+def main():
+    f = open('/tmp/tmux-minder.debug.txt', 'a')
+
+    parser = argparse.ArgumentParser(description='Handle tmux activity')
+    parser.add_argument('--window', '-w', required=True,
+                        help='tmux window ID')
+    parser.add_argument('--register', '-r', action='store_true',
+                        help='register window')
+    parser.add_argument('--unregister', '-u', action='store_true',
+                        help='unregister window')
+    parser.add_argument('--lines', '-n', metavar='N', type=int,
+                        help='only print the last N lines of the buffer')
+    parser.add_argument('--prune', '-p', action='store_true',
+                        help='prune leading/trailing empty lines')
+
+    args = parser.parse_args()
+    print(args, file=f)
+    script = os.path.realpath(sys.argv[0])
+
+    if args.register and args.unregister:
+        sys.exit('Cannot register and unregister simultaneously')
+
+    listWindows= subprocess.run(['tmux', 'list-windows',
+                    '-t', args.window, '-F',
+                    '#{window_name} #{window_id} #{session_id}'],
+                                stdout=subprocess.PIPE)
+    listWindows.check_returncode()
+
+    session = None
+    windows = []
+    listStr = listWindows.stdout.decode('utf-8')
+    for line in listStr.splitlines():
+        fields = line.split()
+        windows.append({'name': fields[0], 'id': fields[1]})
+        session = fields[2]
+
+    thisRegistered = False
+    anyRegistered = False
+    for window in windows:
+        if window['name'].startswith('==>'):
+            if window['id'] == args.window:
+                thisRegistered = True
+            else:
+                anyRegistered = True
+
+    print('this/any registered: ' + str(thisRegistered) + ' ' +
+            str(anyRegistered), file=f)
+
+    subprocess.run(['tmux', 'set-hook', '-t', args.window,
+            '-u', 'window-renamed']).check_returncode
+
+    if args.register:
+        print('register', file=f)
+
+        setWindowName(args.window, session, '==>')
+
+        print('done w/ refresh', file=f)
+        f.flush()
+        time.sleep(1)
+        print('done sleeping', file=f)
+
+        registerHook(args.window, script)
+
+        print('done setting hook', file=f)
+
+        exit()
+
+    if args.unregister:
+        print('unregister', file=f)
+        setWindowName(args.window, session, '')
+
+        if anyRegistered:
+            registerHook(args.window, script)
+
+        exit()
+
+    # Do stuff if this window is registered
+    if thisRegistered:
+        print('grabbing pane', file=f)
+        setWindowName(args.window, session, '')
+
+        capture = subprocess.run(['tmux', 'capture-pane', '-t',
+                args.window, '-p'], stdout=subprocess.PIPE)
+        capture.check_returncode()
+
+        captureStr = capture.stdout.decode('utf-8')
+        lines = captureStr.splitlines()
+
+        if (args.prune):
+            first = None
+            last = len(lines)
+            for i in range(len(lines)):
+                if lines[i]:
+                    last = i
+                    if not first:
+                        first = i
+
+            lines = lines [first : last + 1]
+
+        if (args.lines):
+            lines = lines[-1 * args.lines:]
+
+        print('\n'.join(lines))
+                    
+    # Re-register hook if nobody is left
+    if anyRegistered:
+        print('re-registering hook', file=f)
+        registerHook(args.window, script)
+
+if __name__ == "__main__":
+    main()
